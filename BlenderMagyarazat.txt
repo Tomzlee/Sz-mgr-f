@@ -1,0 +1,23 @@
+Lámpa:
+Kiindultam egy Cone meshből.
+Az alját kitöröltem, a maradák alakzat lesz a lámpa búrája
+Z dimenzióban leskáláztam 1,2m-re az objektumot.
+Extrude REgionnel lefelé meghosszabítottam a búrát.
+
+Egy Cilinder mesht leskáláztam kábel méretűre (X,Y leskálázás)
+Feltoltam  Cone tetejére, úgy hogy átlógjon rajta
+
+
+Egy Cilinder mesht kisebbre skáláztam, ebből lesz a villanykörte becsavarható része.
+Skáláztam, hogy kisebb legyen és beleférhessen a lámpába.
+A felső lapot Shift+D-vel klónoztam majd felskáláztam, hogy kicsit nagyobb legyen mint az eredeti cilinder.
+Extrude regionnel csináltam ebből egy cilindert és belehelyeztem az eredeti cilinderbe, hogy úgy nézzen ki, mintha azon egy csavarmenet lenne.
+Ezt a vastagabb cilindert Shift+D-vel klónoztam és a kapott másolatot lejjebb ugyanígy elhelyeztem.
+
+Egy UV SPehere alakot félbe vágtam, majd kijelöltem a felső felét és Dissolve Faces-szel eltűntetettem ezt a részt.
+Majd Extrude Region-nel a felső lapot kihúztam. 
+A tetejét az alakzatnak Bevel-el Cilinder-hez hasonló alakba szerkesztettem, majd a legfelső lapot felskáláztam, az így kapott teljes alakzat hasonlít egy villanykörtére.
+Ezt ráhelyeztem a csavarható rész aljára, ezeket pedig a lámpa kábel aljára.
+
+
+Egy cilindert Z dimenzióban lescaleltem, ez lesz a "plafon" amiről lelóg a lámpa.

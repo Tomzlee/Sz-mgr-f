@@ -1,0 +1,714 @@
+<!-- Ratatouille Remi  -->
+<!DOCTYPE html>
+<!-- Ratatouille Remi  -->
+<html lang="hu">
+
+<head>
+    <!-- Ratatouille Remi  -->
+    <meta charset=utf-8>
+    <title>Three.js Object Tester Skeleton</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100%; height: 100% }
+        #caption {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 50%;
+            text-align: left;
+            z-index: 100;
+            display:block;
+            color: yellow;
+        }
+        #info {
+            position: absolute;
+            top: 30px;
+            left: 10px;
+            width: 50%;
+            text-align: left;
+            z-index: 100;
+            display:block;
+            color: cyan;
+            opacity: 1.0;
+        }
+        #billentyu_info {
+            position: absolute;
+            top: 30px;
+            right: 10px;
+            width: 30%;
+            text-align: right;
+            z-index: 100;
+            display: block;
+            color: cyan;
+            opacity: 1.0;
+        }
+
+        #info a { color: #f00; font-weight: bold; text-decoration: underline; cursor: pointer }
+        #billentyu_info a { color: #f00; font-weight: bold; text-decoration: underline; cursor: pointer }
+    </style>
+</head>
+
+<body>
+
+<div id="info">
+    <p id="infopanel">Kasza Dominik Árpád (I2K5ZR) <br>
+        Programtervező informatikus, 2023/24/1
+    </p>
+</div>
+<div id="billentyu_info">
+    <p id="billentyu_infopanel">
+        Billentyű parancsok:<br>
+        <br>
+        "I" : Infopanelek ki/be kapcsolása <br>
+        "Fel nyíl" : Kés felfelé mozgatása <br>
+        "Le nyíl" : Kés lefele mozgatása <br>
+        "P" : Pontfény ki/be (Este/Nappal) <br>
+        "L" : Lámpa ki/be
+
+    </p>
+</div>
+
+<script async src="./dist/es-module-shims.js"></script>
+<script type="importmap">
+    {
+        "imports": {
+            "three": "./js-r154/build/three.module.js",
+            "trackballcontrols": "./js-r154/examples/jsm/controls/TrackballControls.js",
+            "lil-gui": "./js-r154/examples/jsm/libs/lil-gui.module.min.js",
+            "stats": "./js-r154/examples/jsm/libs/stats.module.js",
+            "OBJLoader": "./js-r154/examples/jsm/loaders/OBJLoader.js"
+        }
+    }
+</script>
+
+<script type="module">
+    import { OBJLoader } from 'OBJLoader';
+    import * as THREE from 'three';
+    import { TrackballControls } from 'trackballcontrols';
+    import { GUI } from 'lil-gui';
+    import Stats from 'stats';
+
+
+    // Globális változók
+    let WIDTH, HEIGHT, aspectRatio;
+    let renderer;
+    let scene, camera;
+    let controls;
+
+    let meshLoaded;
+    let pLight;
+    let sLight = new THREE.SpotLight();;
+    let lightCycle = 0 ;
+    let groupLoaded = new THREE.Group();
+
+    let planeGeometry, planeMesh;
+
+
+
+
+
+    let meshController = function () {
+        this.rotationBarrel = 0.0;
+        this.rotationUpper = 0.0;
+        this.positionTank = 0.0;
+    };
+    let ctrl,stats;
+
+
+
+
+    let CheeseGroup = new THREE.Group();
+    let RatGroup = new THREE.Group();
+    let NoseGroup = new THREE.Group();
+
+    let KnifeGroup = new THREE.Group();
+    let holder = new THREE.Object3D();
+
+    let cycle =0;
+    let clock = new THREE.Clock();
+
+
+    function setInfoPanelText( msg ) {
+        infoPanel.innerHTML = msg;
+    }
+    let infoPanel;
+
+    loader();
+
+    function loader() {
+        let loader = new OBJLoader();
+        loader.load(
+            // Forrás URL
+            'assets/models/Lampa.obj',
+            // Modell betöltése utáni függvény
+            function ( loaded ) {
+                // A loaded egy THREE.Group objektum lesz, amelynek a gyermeke(i) a mesh(-ek)!
+
+                groupLoaded = loaded;
+                groupLoaded.scale.set( 4, 4, 4 );
+
+                // Anyag hozzárendelés minden Mesh objektumhoz, ami a csoportban van
+                groupLoaded.traverse( function (child ) {
+                    if ( child instanceof THREE.Mesh ) {
+                        console.log('mesh found in loaded group');
+                        child.material = new THREE.MeshPhongMaterial({color: 0x2080f0});
+                        child.castShadow = true;
+                        child.transparent = false;
+                        child.opacity= 1;
+                        child.position.y = 7;
+
+                        child.material = new THREE.MeshPhongMaterial({color: 0x808080});
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+
+                        if (child.name === 'Cone'){
+                            child.material = new THREE.MeshPhongMaterial({color: 0x5A5A5A});
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                        if (child.name === 'Cylinder.004_Cylinder.006'){
+                            child.material = new THREE.MeshPhongMaterial({color: 0xffff00});
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    }
+                } );
+
+                init();
+                scene.add( groupLoaded );
+            },
+            // Betöltés előrehaladása közben hívódik
+            function ( xhr ) {
+                console.log( ( xhr.loaded / xhr.total * 100 ) + '% betöltve' );
+            },
+            // Hiba esetén hívódik
+            function ( error ) {
+                console.log( 'An error happened!', error.currentTarget.statusText, error.currentTarget.responseURL );
+            }
+        );
+    }
+
+
+
+
+
+    function addStatsObject() {
+        stats = new Stats();
+        stats.setMode(0);
+
+        stats.domElement.style.position = 'absolute';
+        stats.domElement.style.left = '0px';
+        stats.domElement.style.top = '0px';
+        document.body.appendChild( stats.domElement );
+    }
+
+    function init() {
+
+        window.addEventListener( 'keydown', handleKeyDown );
+
+        infoPanel = document.getElementById( 'infopanel' );
+        // Böngésző ablakméret lekérése és méretarány számítása
+        HEIGHT = window.innerHeight;
+        WIDTH = window.innerWidth;
+        aspectRatio = WIDTH / HEIGHT;
+
+        var textureLoader = new THREE.TextureLoader();
+        var texture = textureLoader.load( 'assets/texture/Cheese.jpg' );
+        var woodTexture = textureLoader.load('assets/texture/Wood.jpeg');
+        var kitchenTile = textureLoader.load('assets/texture/KitchenTiles.jpg');
+
+
+        // Renderer létrehozása és DOM-hoz adása
+        renderer = new THREE.WebGLRenderer( { antialias: true } );
+        renderer.setSize( WIDTH, HEIGHT );
+        renderer.setClearColor( 0x000000 );
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild( renderer.domElement );
+
+        // Színtér létrehozása
+        scene = new THREE.Scene();
+
+
+
+        // Kamera létrehozása és vetítési paramétereinek beállítása
+        camera = new THREE.PerspectiveCamera( 75, aspectRatio, 0.1, 1000 );
+        camera.position.set( 0, 20, 70 );
+        camera.lookAt( scene.position.x, scene.position.y, scene.position.z );
+
+
+
+
+
+        // Asztal
+
+        let boxGeometry = new THREE.BoxGeometry( 60, 1, 30 );
+        let boxMaterial = new THREE.MeshLambertMaterial( { color: 0xDAA06D} );
+        boxMaterial.map = woodTexture;
+        let boxMesh = new THREE.Mesh( boxGeometry, boxMaterial );
+        boxMesh.castShadow = true;
+        boxMesh.receiveShadow = true;
+        scene.add( boxMesh );
+
+        let egBox = new THREE.EdgesGeometry( boxGeometry );
+        let egBoxLines = new THREE.LineSegments( egBox, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+        boxMesh.add( egBoxLines );
+
+        boxMesh.position.set(0,-1,0);
+        boxMesh.scale.set(1.0,.8,1);
+
+        //lábak
+
+
+        let legGeometry = new THREE.BoxGeometry(5, 30, 5);
+        let legMaterial = new THREE.MeshLambertMaterial({color: 0xDAA06D});
+        legMaterial.map = woodTexture;
+
+
+        for (let i = -1; i <= 1; i += 2) {
+            for (let j = -1; j <= 1; j += 2) {
+
+                let legMesh = new THREE.Mesh(legGeometry, legMaterial);
+                legMesh.castShadow = true;
+                legMesh.receiveShadow = true;
+
+                legMesh.position.set(i * 25, -16, j * 12);
+
+                scene.add(legMesh);
+
+                let legEdges = new THREE.EdgesGeometry(legGeometry);
+                let legLines = new THREE.LineSegments(legEdges, new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 }));
+                legMesh.add(legLines);
+            }
+        }
+
+        //ground
+
+        planeGeometry = new THREE.PlaneGeometry( 100, 100, 100, 100 );
+        let material2 = new THREE.MeshPhongMaterial( { } );
+        material2.map = kitchenTile;
+        planeMesh = new THREE.Mesh( planeGeometry, material2 );
+        planeMesh.rotation.x = -1.0 * Math.PI / 2.0;
+        planeMesh.position.y = -30;
+        planeMesh.receiveShadow = true;
+        planeMesh.castShadow = false;
+        scene.add( planeMesh );
+
+
+
+
+        // patkány test
+        let ratBody = new THREE.BoxGeometry( 4, 2, 2 );
+        let ratBodyMaterial = new THREE.MeshLambertMaterial( { color: 0x7393B3} );
+        let ratBodyMesh = new THREE.Mesh( ratBody, ratBodyMaterial );
+        RatGroup.add(ratBodyMesh)
+        //scene.add( ratBodyMesh );
+
+        ratBodyMesh.position.set(9,0,-3);
+        ratBodyMesh.scale.set(1.2,0.9,0.8);
+
+        let rBBox = new THREE.EdgesGeometry( ratBody );
+        let rBBoxLines = new THREE.LineSegments( rBBox, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+        ratBodyMesh.add( rBBoxLines );
+
+        //tail
+        let ratTail = new THREE.BoxGeometry( 2, 1, 1 );
+        let ratTailMaterial = new THREE.MeshLambertMaterial( { color: 0xFFA0A0} );
+        let ratTailMesh = new THREE.Mesh( ratTail, ratTailMaterial );
+        //scene.add( ratTailMesh );
+        RatGroup.add(ratTailMesh);
+
+        ratTailMesh.position.set(12,0,-3);
+        ratTailMesh.scale.set(1,0.7,0.7);
+
+        let rTBox = new THREE.EdgesGeometry( ratTail );
+        let rTBoxLines = new THREE.LineSegments( rTBox, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+        ratTailMesh.add( rTBoxLines );
+
+
+        // Create a smaller box geometry
+        let smallerRatTail = new THREE.BoxGeometry(2, 1, 1); // Adjust the size as needed
+        let smallerRatTailMaterial = new THREE.MeshLambertMaterial({ color: 0xFFA0A0 });
+        let smallerRatTailMesh = new THREE.Mesh(smallerRatTail, smallerRatTailMaterial);
+
+        //scene.add(smallerRatTailMesh);
+        RatGroup.add(smallerRatTailMesh);
+
+
+        smallerRatTailMesh.position.set(13.5, 0, -2.5);
+        smallerRatTailMesh.scale.set(1, 0.4, 0.4);
+        smallerRatTailMesh.rotateY(Math.PI*-1 / 4); // Math.PI / 4 radians is equivalent to 45 degrees
+
+
+
+
+        let smallerRTBox = new THREE.EdgesGeometry(smallerRatTail);
+        let smallerRTBoxLines = new THREE.LineSegments(smallerRTBox, new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 }));
+        smallerRatTailMesh.add(smallerRTBoxLines);
+
+        //patkány fej
+
+        let ratHead = new THREE.BoxGeometry( 2, 2, 2 );
+        let ratHeadMaterial = new THREE.MeshLambertMaterial( { color: 0x7393B3} );
+        let ratHeadMesh = new THREE.Mesh( ratHead, ratHeadMaterial );
+        //scene.add( ratHeadMesh );
+        RatGroup.add(ratHeadMesh);
+
+        ratHeadMesh.position.set(6.5,0,-3);
+        ratHeadMesh.scale.set(1,1.1,1);
+        ratHeadMesh.rotateY(Math.PI*-1/3);
+
+        let rHBox = new THREE.EdgesGeometry( ratHead );
+        let rHBoxLines = new THREE.LineSegments( rHBox, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+        ratHeadMesh.add( rHBoxLines );
+
+        //nose
+
+        let ratNose = new THREE.BoxGeometry( 3, 1, 1 );
+        let ratNoseMaterial = new THREE.MeshLambertMaterial( { color: 0x7393B3} );
+        let ratNoseMesh = new THREE.Mesh( ratNose, ratNoseMaterial );
+        //scene.add( ratNoseMesh );
+        //RatGroup.add(ratNoseMesh);
+        NoseGroup.add(ratNoseMesh);
+
+        ratNoseMesh.position.set(5,0,-2);
+        ratNoseMesh.scale.set(0.6,1,1);
+        ratNoseMesh.rotateY(Math.PI/5);
+
+        let rNBox = new THREE.EdgesGeometry( ratNose );
+        let rNBoxLines = new THREE.LineSegments( rNBox, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+        ratNoseMesh.add( rNBoxLines );
+
+
+
+        let ratNosePoint = new THREE.BoxGeometry( 1, 1, 1 );
+        let ratNosePointMaterial = new THREE.MeshLambertMaterial( { color: 0x000000} );
+        let ratNosePointMesh = new THREE.Mesh( ratNosePoint, ratNosePointMaterial );
+        //scene.add( ratNosePointMesh );
+        //RatGroup.add(ratNosePointMesh);
+        NoseGroup.add(ratNosePointMesh);
+
+        ratNosePointMesh.position.set(4.2,0,-1.36);
+        ratNosePointMesh.scale.set(0.3,0.3,0.3);
+        ratNosePointMesh.rotateY(Math.PI*-1/3.5);
+
+        let rNPBox = new THREE.EdgesGeometry( ratNosePoint );
+        let rNPBoxLines = new THREE.LineSegments( rNPBox, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+        ratNosePointMesh.add( rNPBoxLines );
+
+
+
+        //fulek
+
+        let ratEarL = new THREE.BoxGeometry( 1, 4, 2 );
+        let ratEarLMaterial = new THREE.MeshLambertMaterial( { color: 0xFFA0AD} );
+        let ratEarLMesh = new THREE.Mesh( ratEarL, ratEarLMaterial );
+
+
+        //scene.add(ratEarLMesh);
+        RatGroup.add(ratEarLMesh);
+
+
+        ratEarLMesh.position.set(7,1.4,-2);
+        ratEarLMesh.scale.set(0.3,0.2,0.4);
+        ratEarLMesh.rotateY(Math.PI/9);
+
+        let rELBox = new THREE.EdgesGeometry( ratEarL );
+        let rELBoxLines = new THREE.LineSegments( rELBox, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+        ratEarLMesh.add( rELBoxLines );
+
+        let ratEarR = new THREE.BoxGeometry( 1, 4, 2 );
+        let ratEarRMaterial = new THREE.MeshLambertMaterial( { color: 0xFFA0AD} );
+        let ratEarRMesh = new THREE.Mesh( ratEarR, ratEarRMaterial );
+        //scene.add(ratEarRMesh);
+        RatGroup.add(ratEarRMesh);
+
+
+        ratEarRMesh.position.set(6,1.4,-4);
+        ratEarRMesh.scale.set(0.3,0.2,0.4);
+        ratEarRMesh.rotateY(Math.PI/4);
+
+        let rERBox = new THREE.EdgesGeometry( ratEarR );
+        let rERBoxLines = new THREE.LineSegments( rERBox, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+        ratEarRMesh.add( rERBoxLines );
+
+
+        //Patkány test hozzáadása
+
+
+        scene.add(RatGroup);
+        scene.add(NoseGroup);
+        RatGroup.position.set(8,0,-5);
+        NoseGroup.position.set(8,0,-5);
+
+
+
+        // cheese wheel
+        let cylGeometry = new THREE.CylinderGeometry( 7, 7, 8, 50 );
+        let cylMaterial = new THREE.MeshLambertMaterial(  );
+        cylMaterial.map = texture;
+        let cylMesh = new THREE.Mesh( cylGeometry, cylMaterial );
+
+        CheeseGroup.add(cylMesh)
+        //CheeseGroup.position.set(-3,0,4)
+        scene.add( CheeseGroup );
+
+        cylMesh.position.set(-3,0,4);
+        cylMesh.scale.set(0.5,0.3,0.5);
+
+        let CheesBox = new THREE.EdgesGeometry( cylGeometry );
+        let CheeseBoxLines = new THREE.LineSegments( CheesBox, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+        cylMesh.add( CheeseBoxLines );
+
+        //kés
+
+        let kesGeometry = new THREE.BoxGeometry( 6, 5, 1 );
+        let kesMaterial = new THREE.MeshPhongMaterial( {
+            color: 0xa0adaf,
+            shininess: 90,
+            specular: 0xffffff
+        } );
+        let kesMesh = new THREE.Mesh( kesGeometry, kesMaterial );
+        kesMesh.receiveShadow = false;
+        kesMesh.castShadow = true;
+        //scene.add( kesMesh );
+        KnifeGroup.add(kesMesh);
+
+        let kesBox = new THREE.EdgesGeometry( kesGeometry );
+        let kesBoxLines = new THREE.LineSegments( kesBox, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+        kesMesh.add( kesBoxLines );
+
+        kesMesh.position.set(-6,1.5,-4);
+        kesMesh.scale.set(0.5,1,0.1);
+        //kesMesh.rotateY(Math.PI/7);
+        //kesMesh.rotateZ(Math.PI/7)
+
+        //kés nyele
+        let fogoGeometry = new THREE.CylinderGeometry( 1, 1, 8, 10 );
+        let fogoMaterial = new THREE.MeshLambertMaterial( { color: 0xDAA06D } );
+        let fogoMesh = new THREE.Mesh( fogoGeometry, fogoMaterial );
+        fogoMesh.receiveShadow = false;
+        fogoMesh.castShadow = true;
+        //scene.add( fogoMesh );
+        KnifeGroup.add(fogoMesh);
+        //kesMesh.add(fogoMesh);
+
+
+        let fogoBox = new THREE.EdgesGeometry( fogoGeometry );
+        let fogoBoxLines = new THREE.LineSegments( fogoBox, new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 2 } ) );
+        fogoMesh.add( fogoBoxLines );
+
+        fogoMesh.position.set(-7,5.3,-4);
+        fogoMesh.scale.set(0.6,0.4,0.6);
+        //fogoMesh.rotateY(Math.PI/7);
+        //fogoMesh.rotateZ(Math.PI/7)
+
+        // KnifeGroup
+        scene.add(KnifeGroup);
+        KnifeGroup.rotation.z = -1.5;
+        KnifeGroup.position.y = -5;
+        KnifeGroup.position.z = 8;
+
+
+
+        //ambient light
+        let ambientLight = new THREE.AmbientLight( 0xffffff, 0.1);
+        scene.add( ambientLight );
+        //pontfény
+
+        pLight = new THREE.PointLight( 0xffffff, 0.8, 300 , 2);
+        pLight.position.set( 0, 35, 40 );
+        scene.add( pLight );
+        /*
+        let sphereSize = 1;
+        let pointLightHelper = new THREE.PointLightHelper( pLight, sphereSize );
+        scene.add( pointLightHelper );
+
+         */
+
+
+
+        //spotlight
+        sLight = new THREE.SpotLight( 0xffffff, 0.5 );
+        sLight.position.set( 0, 35, 0 );
+        sLight.angle = Math.PI / 8;
+        sLight.target = boxMesh;
+        sLight.castShadow = true;
+
+
+        scene.add( sLight );
+
+        /*let spotLightHelper = new THREE.SpotLightHelper( sLight );
+        scene.add( spotLightHelper );
+
+         */
+
+
+
+        addStatsObject();
+
+        // Az ablak későbbi átméretezése esetén visszahívható függvény megadása
+        window.addEventListener( 'resize', handleWindowResize, false );
+
+        // Kamera vezérlés
+        controls = new TrackballControls( camera, renderer.domElement );
+        controls.rotateSpeed = 5.0;
+        controls.panSpeed = 1.0;
+        animate()
+    }
+
+    function handleWindowResize() {
+        // Az ablak átméretezése esetén a kamera vetítési paraméterek újraszámolása
+        HEIGHT = window.innerHeight;
+        WIDTH = window.innerWidth;
+        console.log( 'WIDTH=' + WIDTH + '; HEIGHT=' + HEIGHT );
+        renderer.setSize( WIDTH, HEIGHT );
+        aspectRatio = WIDTH / HEIGHT;
+        camera.aspect = aspectRatio;
+        camera.updateProjectionMatrix();
+
+        render();
+    }
+
+
+
+    function animate() {
+        // Újabb képkocka rajzolásának kérése.
+        // Maximálisan 60 FPS-t biztosít a rendszer.
+        var delta = clock.getDelta();
+        controls.update( delta );
+
+        requestAnimationFrame( animate );
+
+
+
+
+
+
+
+        //RatGroup.rotation.y += 0.01;
+
+
+
+
+        if (cycle == 0){
+            NoseGroup.position.y += 0.01;
+
+
+            if (NoseGroup.position.y >= 0.3){
+                cycle = 1;
+            }
+        }
+        else if (cycle == 1) {
+            NoseGroup.position.y -= 0.01;
+
+
+            if (NoseGroup.position.y <= 0) {
+                cycle = 0;
+            }
+        }
+
+
+
+
+
+
+
+
+        stats.update();
+
+
+        // controls.update();
+        // Új képkocka rajzolása
+        render();
+    }
+
+    function render() {
+        // 3D -> 2D vetített kép kiszámítása.
+        // scene 3D színtér képe a camera kamera szemszögéből.
+        renderer.render( scene, camera );
+    }
+
+    function addControlGui( controlObject ) {
+        let gui = new GUI( { autoPlace: false } );
+        gui.add( controlObject, 'rotationBarrel', -60, 15 ).name( 'Ágyúcső szöge' );
+        gui.add( controlObject, 'rotationUpper', -180.0, 180.0 ).name( 'Forgás szöge' );
+        gui.add( controlObject, 'positionTank', -400.0, 400.0).name( 'Tank pozíció' );
+
+        gui.domElement.style.position = 'absolute';
+        gui.domElement.style.bottom = '2px';
+        gui.domElement.style.right = '2px';
+        document.body.appendChild( gui.domElement );
+    }
+
+    function handleKeyDown( event ) {
+        switch ( event.keyCode ) {
+
+
+
+            /* ha van szöveg, ne legyen
+                ha nincs akkor legyen
+             */
+
+            case 73: /*I*/
+
+                let x = document.getElementById("infopanel");
+                if (x.style.display === "none") {
+                    x.style.display = "block";
+                } else {
+                    x.style.display = "none";
+                }
+
+                let y = document.getElementById("billentyu_infopanel");
+                if (y.style.display === "none") {
+                    y.style.display = "block";
+                } else {
+                    y.style.display = "none";
+                }
+
+
+
+
+
+                break;
+
+            case 38: /*up*/
+                if (KnifeGroup.position.y <= -1){
+                    KnifeGroup.position.y += 0.2;
+
+                }
+                break;
+
+            case 40: /*down*/
+                if (KnifeGroup.position.y >= -5.5) {
+                    KnifeGroup.position.y -= 0.2;
+
+                }
+                break;
+
+
+            case 76: /*L*/
+                if (sLight.intensity == 0){
+                    sLight.intensity = 0.5;
+                }else {
+                    sLight.intensity = 0;
+                }
+                break;
+
+            case 80: /*P*/
+                if (pLight.intensity == 0){
+                    pLight.intensity = 0.8;
+                }else {
+                    pLight.intensity = 0;
+                }
+                break;
+
+
+
+        }
+
+    }
+
+
+</script>
+</body>
+</html>
